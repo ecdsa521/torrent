@@ -61,6 +61,14 @@ func (t *Torrent) NumPieces() int {
 	return t.numPieces()
 }
 
+func (t *Torrent) SetStatus(status string) {
+	t.Status = status
+}
+
+func (t *Torrent) GetStatus() string {
+	return t.Status
+}
+
 // Drop the torrent from the client, and close it. It's always safe to do
 // this. No data corruption can, or should occur to either the torrent's data,
 // or connected peers.

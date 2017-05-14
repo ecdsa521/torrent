@@ -113,6 +113,8 @@ type Torrent struct {
 	connPieceInclinationPool sync.Pool
 	// Torrent-level statistics.
 	stats TorrentStats
+
+	Status string
 }
 
 // Returns a channel that is closed when the Torrent is closed.
@@ -544,7 +546,44 @@ func (t *Torrent) numPieces() int {
 func (t *Torrent) numPiecesCompleted() (num int) {
 	return t.completedPieces.Len()
 }
+func (t *Torrent) Announce() {
+	t.cl.mu.Lock()
+	defer t.cl.mu.Unlock()
+	t.wantPeersEvent.Set()
+	t.announceDHT(true)
+	t.startMissingTrackerScrapers()
+	cl := t.cl
+	cl.event.Broadcast()
+	cl.openNewConns(t)
+}
+func (t *Torrent) Reopen() {
+	t.closed.SetBool(false)
+	t.closed.Clear()
+	t.announceDHT(true)
+	t.wantPeersEvent.Set()
+	t.startMissingTrackerScrapers()
+	cl := t.cl
+	cl.event.Broadcast()
+	cl.openNewConns(t)
+	t.openNewConns()
+	t.publishPieceChange(0)
+}
+func (t *Torrent) Close() (err error) {
+	t.cl.mu.Lock()
+	defer t.cl.mu.Unlock()
+	t.closed.Set()
+	if t.storage != nil {
+		t.storage.Close()
+	}
+	for conn := range t.conns {
+		conn.Close()
+	}
 
+	t.pieceStateChanges.Close()
+	t.updateWantPeersEvent()
+	return
+
+}
 func (t *Torrent) close() (err error) {
 	t.closed.Set()
 	if t.storage != nil {
@@ -1098,6 +1137,19 @@ func (t *Torrent) dropConnection(c *connection) {
 	c.Close()
 	if t.deleteConnection(c) {
 		t.openNewConns()
+	}
+}
+func (t *Torrent) Activity() map[string]bool {
+	t.cl.mu.Lock()
+	defer t.cl.mu.Unlock()
+	return map[string]bool{
+		"closed":         t.closed.IsSet(),
+		"wantPeers":      t.wantPeers(),
+		"wantConns":      t.wantConns(),
+		"seeding":        t.seeding(),
+		"wantPeersEvent": t.wantPeersEvent.IsSet(),
+		"needData":       t.needData(),
+		"lowPeers":       len(t.peers) > torrentPeersLowWater,
 	}
 }
 
