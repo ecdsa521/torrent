@@ -115,6 +115,7 @@ type Torrent struct {
 	stats TorrentStats
 
 	Status string
+	Label  map[string]bool
 }
 
 // Returns a channel that is closed when the Torrent is closed.

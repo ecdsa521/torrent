@@ -2,6 +2,7 @@ package torrent
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/anacrolix/missinggo/pubsub"
@@ -65,6 +66,24 @@ func (t *Torrent) SetStatus(status string) {
 	t.Status = status
 }
 
+func (t *Torrent) AddLabel(label string) {
+	if t.Label == nil {
+		t.Label = make(map[string]bool)
+	}
+	t.Label[label] = true
+}
+
+func (t *Torrent) DelLabel(label string) {
+	delete(t.Label, label)
+}
+
+func (t *Torrent) GetLabel() []string {
+	data := []string{}
+	for _, v := range reflect.ValueOf(t.Label).MapKeys() {
+		data = append(data, v.String())
+	}
+	return data
+}
 func (t *Torrent) GetStatus() string {
 	return t.Status
 }
